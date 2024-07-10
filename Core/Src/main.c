@@ -6,11 +6,14 @@ TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim6;
 UART_HandleTypeDef huart1;
 
-void SystemClock_Config(void);
+static void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_USART1_UART_Init(void);
+
+// s ovime gledamo jel se senzor upalio ili nije, ako se bio upalio znaci da je auto vec dosao
+static int ulazni_senzor_upaljen = 0;
 
 
 void digni_ulaznu_rampu() {
@@ -39,10 +42,23 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 		//resetiraj timer
 		__HAL_TIM_SET_COUNTER(&htim6, 0);
 
-		//počisti interrupt flag
+		//po�?isti interrupt flag
 		__HAL_TIM_CLEAR_FLAG(&htim6, TIM_FLAG_UPDATE);
 
 		spusti_izlaznu_rampu();
+	}
+}
+
+// EXTI4 interrupt handler
+//ovdje se gleda jel ulazni senzor upaljen
+void EXTI4_IRQHandler(void) {
+
+	if (__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_4) != RESET) {
+		ulazni_senzor_upaljen = 1;
+	}
+	//ako je senzor reset(0), znaci da je ugasen tj nema auta kod ulaza
+	else if (__HAL_GPIO_EXTI_GET_IT(GPIO_PIN_4) == RESET) {
+		ulazni_senzor_upaljen = 0;
 	}
 }
 
@@ -90,7 +106,7 @@ int main(void) {
 			HAL_Delay(5000);
 			//nakon 5 sekundi sto prode ovdje ispitujemo u while petlji jel senzor za ulaznu rampu ocitava nesto
 			//ako nesto ocitava onda ce se program vrtiti u ovoj while petlji sve dok senzor ne prestane ocitavati nesto
-			while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_4) != 1) {
+			while (ulazni_senzor_upaljen == 1) {
 			}
 			//nakon sto senzor nista ne ocitava spustamo ulaznu rampu jer to znaci da nema niti jedan auto pa je sigurno spustiti
 			spusti_ulaznu_rampu();
@@ -150,184 +166,194 @@ void SystemClock_Config(void) {
 }
 
 /**
- * @brief TIM2 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM2_Init(void) {
+  * @brief TIM2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM2_Init(void)
+{
 
-	/* USER CODE BEGIN TIM2_Init 0 */
+  /* USER CODE BEGIN TIM2_Init 0 */
 
-	/* USER CODE END TIM2_Init 0 */
+  /* USER CODE END TIM2_Init 0 */
 
-	TIM_ClockConfigTypeDef sClockSourceConfig = { 0 };
-	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
-	TIM_OC_InitTypeDef sConfigOC = { 0 };
+  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_OC_InitTypeDef sConfigOC = {0};
 
-	/* USER CODE BEGIN TIM2_Init 1 */
+  /* USER CODE BEGIN TIM2_Init 1 */
 
-	/* USER CODE END TIM2_Init 1 */
-	htim2.Instance = TIM2;
-	htim2.Init.Prescaler = 900 - 1;
-	htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim2.Init.Period = 1000 - 1;
-	htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-	htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	if (HAL_TIM_Base_Init(&htim2) != HAL_OK) {
-		Error_Handler();
-	}
-	sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-	if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK) {
-		Error_Handler();
-	}
-	if (HAL_TIM_PWM_Init(&htim2) != HAL_OK) {
-		Error_Handler();
-	}
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig)
-			!= HAL_OK) {
-		Error_Handler();
-	}
-	sConfigOC.OCMode = TIM_OCMODE_PWM1;
-	sConfigOC.Pulse = 0;
-	sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
-	sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
-	if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1)
-			!= HAL_OK) {
-		Error_Handler();
-	}
-	if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2)
-			!= HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN TIM2_Init 2 */
+  /* USER CODE END TIM2_Init 1 */
+  htim2.Instance = TIM2;
+  htim2.Init.Prescaler = 900-1;
+  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim2.Init.Period = 1000-1;
+  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigOC.OCMode = TIM_OCMODE_PWM1;
+  sConfigOC.Pulse = 0;
+  sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+  sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_PWM_ConfigChannel(&htim2, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM2_Init 2 */
 
-	/* USER CODE END TIM2_Init 2 */
-	HAL_TIM_MspPostInit(&htim2);
-
-}
-
-/**
- * @brief TIM6 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_TIM6_Init(void) {
-
-	/* USER CODE BEGIN TIM6_Init 0 */
-
-	/* USER CODE END TIM6_Init 0 */
-
-	TIM_MasterConfigTypeDef sMasterConfig = { 0 };
-
-	/* USER CODE BEGIN TIM6_Init 1 */
-
-	/* USER CODE END TIM6_Init 1 */
-	htim6.Instance = TIM6;
-	htim6.Init.Prescaler = 45000 - 1;
-	htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-	htim6.Init.Period = 5000 - 1;
-	htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-	if (HAL_TIM_Base_Init(&htim6) != HAL_OK) {
-		Error_Handler();
-	}
-	sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-	sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-	if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig)
-			!= HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN TIM6_Init 2 */
-
-	/* USER CODE END TIM6_Init 2 */
+  /* USER CODE END TIM2_Init 2 */
+  HAL_TIM_MspPostInit(&htim2);
 
 }
 
 /**
- * @brief USART1 Initialization Function
- * @param None
- * @retval None
- */
-static void MX_USART1_UART_Init(void) {
+  * @brief TIM6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM6_Init(void)
+{
 
-	/* USER CODE BEGIN USART1_Init 0 */
+  /* USER CODE BEGIN TIM6_Init 0 */
 
-	/* USER CODE END USART1_Init 0 */
+  /* USER CODE END TIM6_Init 0 */
 
-	/* USER CODE BEGIN USART1_Init 1 */
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
 
-	/* USER CODE END USART1_Init 1 */
-	huart1.Instance = USART1;
-	huart1.Init.BaudRate = 9600;
-	huart1.Init.WordLength = UART_WORDLENGTH_8B;
-	huart1.Init.StopBits = UART_STOPBITS_1;
-	huart1.Init.Parity = UART_PARITY_NONE;
-	huart1.Init.Mode = UART_MODE_TX_RX;
-	huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-	huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-	if (HAL_UART_Init(&huart1) != HAL_OK) {
-		Error_Handler();
-	}
-	/* USER CODE BEGIN USART1_Init 2 */
+  /* USER CODE BEGIN TIM6_Init 1 */
 
-	/* USER CODE END USART1_Init 2 */
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 45000 - 1;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 5000 - 1;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM6_Init 2 */
+
+  /* USER CODE END TIM6_Init 2 */
 
 }
 
 /**
- * @brief GPIO Initialization Function
- * @param None
- * @retval None
- */
-static void MX_GPIO_Init(void) {
-	GPIO_InitTypeDef GPIO_InitStruct = { 0 };
-	/* USER CODE BEGIN MX_GPIO_Init_1 */
-	/* USER CODE END MX_GPIO_Init_1 */
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
 
-	/* GPIO Ports Clock Enable */
-	__HAL_RCC_GPIOC_CLK_ENABLE();
-	__HAL_RCC_GPIOH_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
+  /* USER CODE BEGIN USART1_Init 0 */
 
-	/*Configure GPIO pin Output Level */
-	HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+  /* USER CODE END USART1_Init 0 */
 
-	/*Configure GPIO pin : B1_Pin */
-	GPIO_InitStruct.Pin = B1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+  /* USER CODE BEGIN USART1_Init 1 */
 
-	/*Configure GPIO pin : PA4 */
-	GPIO_InitStruct.Pin = GPIO_PIN_4;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 9600;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
 
-	/*Configure GPIO pin : LD2_Pin */
-	GPIO_InitStruct.Pin = LD2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
-	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-	HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+  /* USER CODE END USART1_Init 2 */
 
-	/*Configure GPIO pin : PB0 */
-	GPIO_InitStruct.Pin = GPIO_PIN_0;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+}
 
-	/* EXTI interrupt init*/
-	HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(EXTI0_IRQn);
+/**
+  * @brief GPIO Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_GPIO_Init(void)
+{
+  GPIO_InitTypeDef GPIO_InitStruct = {0};
+/* USER CODE BEGIN MX_GPIO_Init_1 */
+/* USER CODE END MX_GPIO_Init_1 */
 
-	HAL_NVIC_SetPriority(EXTI4_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(EXTI4_IRQn);
+  /* GPIO Ports Clock Enable */
+  __HAL_RCC_GPIOC_CLK_ENABLE();
+  __HAL_RCC_GPIOH_CLK_ENABLE();
+  __HAL_RCC_GPIOA_CLK_ENABLE();
+  __HAL_RCC_GPIOB_CLK_ENABLE();
 
-	/* USER CODE BEGIN MX_GPIO_Init_2 */
-	/* USER CODE END MX_GPIO_Init_2 */
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(LD2_GPIO_Port, LD2_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pin : B1_Pin */
+  GPIO_InitStruct.Pin = B1_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : USART_TX_Pin USART_RX_Pin */
+  GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA4 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : LD2_Pin */
+  GPIO_InitStruct.Pin = LD2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(LD2_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PB0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+/* USER CODE BEGIN MX_GPIO_Init_2 */
+/* USER CODE END MX_GPIO_Init_2 */
 }
 
 /* USER CODE BEGIN 4 */
@@ -335,16 +361,17 @@ static void MX_GPIO_Init(void) {
 /* USER CODE END 4 */
 
 /**
- * @brief  This function is executed in case of error occurrence.
- * @retval None
- */
-void Error_Handler(void) {
-	/* USER CODE BEGIN Error_Handler_Debug */
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
+  */
+void Error_Handler(void)
+{
+  /* USER CODE BEGIN Error_Handler_Debug */
 	/* User can add his own implementation to report the HAL error return state */
 	__disable_irq();
 	while (1) {
 	}
-	/* USER CODE END Error_Handler_Debug */
+  /* USER CODE END Error_Handler_Debug */
 }
 
 #ifdef  USE_FULL_ASSERT
