@@ -12,7 +12,7 @@ static void MX_TIM2_Init(void);
 static void MX_TIM6_Init(void);
 static void MX_USART1_UART_Init(void);
 
-// s ovime gledamo jel se senzor upalio ili nije, ako se bio upalio znaci da je auto vec dosao
+// s ovime gledamo jel se senzor upalio
 static int ulazni_senzor_upaljen = 0;
 
 
